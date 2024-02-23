@@ -1,16 +1,18 @@
-import { history } from '@umijs/max';
+import { history, useIntl } from '@umijs/max';
 import { Button, Result } from 'antd';
 import React from 'react';
+
 const NoFoundPage: React.FC = () => (
   <Result
     status="404"
     title="404"
-    subTitle={'抱歉，您访问的页面不存在。'}
+    subTitle={useIntl().formatMessage({ id: 'pages.404.subTitle' })}
     extra={
       <Button type="primary" onClick={() => history.push('/')}>
-        {'返回首页'}
+        {useIntl().formatMessage({ id: 'pages.404.buttonText' })}
       </Button>
     }
   />
 );
+
 export default NoFoundPage;
