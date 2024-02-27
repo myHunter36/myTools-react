@@ -106,38 +106,33 @@ const TableList: React.FC = () => {
 
   const columns: ProColumns<API.RuleListItem>[] = [
     {
-      title: '规则名称',
-      dataIndex: 'name',
-      tip: 'The rule name is the unique key',
-      render: (dom, entity) => {
-        return (
-          <a
-            onClick={() => {
-              setCurrentRow(entity);
-              setShowDetail(true);
-            }}
-          >
-            {dom}
-          </a>
-        );
+      title: '交易日期',
+      // sorter: true,
+      dataIndex: 'updatedAt',
+      valueType: 'date',
+      renderFormItem: (item, { defaultRender, ...rest }, form) => {
+        return defaultRender(item);
       },
     },
     {
       title: '描述',
       dataIndex: 'desc',
       valueType: 'textarea',
+      hideInSearch: true,
     },
     {
-      title: '服务调用次数',
-      dataIndex: 'callNo',
+      title: '金额',
+      dataIndex: 'amount',
       sorter: true,
       hideInForm: true,
-      renderText: (val: string) => `${val}${'万'}`,
+      valueType: 'money',
+      renderText: (val: string) => `${val}${'元'}`,
+      hideInSearch: true,
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      hideInForm: true,
+      title: '账单类型',
+      dataIndex: 'category',
+      filters: true,
       valueEnum: {
         0: {
           text: '关闭',
@@ -158,19 +153,26 @@ const TableList: React.FC = () => {
       },
     },
     {
-      title: '上次调度时间',
-      sorter: true,
-      dataIndex: 'updatedAt',
-      valueType: 'dateTime',
-      renderFormItem: (item, { defaultRender, ...rest }, form) => {
-        const status = form.getFieldValue('status');
-        if (`${status}` === '0') {
-          return false;
-        }
-        if (`${status}` === '3') {
-          return <Input {...rest} placeholder={'请输入异常原因！'} />;
-        }
-        return defaultRender(item);
+      title: '支付方式',
+      dataIndex: 'paymentMethod',
+      filters: true,
+      valueEnum: {
+        0: {
+          text: '关闭',
+          status: 'Default',
+        },
+        1: {
+          text: '运行中',
+          status: 'Processing',
+        },
+        2: {
+          text: '已上线',
+          status: 'Success',
+        },
+        3: {
+          text: '异常',
+          status: 'Error',
+        },
       },
     },
     {
@@ -179,16 +181,23 @@ const TableList: React.FC = () => {
       valueType: 'option',
       render: (_, record) => [
         <a
-          key="config"
+          key="edit"
           onClick={() => {
             handleUpdateModalOpen(true);
             setCurrentRow(record);
           }}
         >
-          配置
+          编辑
         </a>,
-        <a key="subscribeAlert" href="https://procomponents.ant.design/">
-          订阅警报
+        <a 
+          key="delete" 
+          onClick={async () => {
+            await handleRemove([record]);
+            setSelectedRows([]);
+            actionRef.current?.reloadAndRest?.();
+          }}
+        >
+          删除
         </a>,
       ],
     },
@@ -196,7 +205,7 @@ const TableList: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<API.RuleListItem, API.PageParams>
-        headerTitle={'查询表格'}
+        headerTitle={'账单表格'}
         actionRef={actionRef}
         rowKey="key"
         search={{
@@ -234,9 +243,9 @@ const TableList: React.FC = () => {
                 {selectedRowsState.length}
               </a>{' '}
               项 &nbsp;&nbsp;
-              <span>
+              {/* <span>
                 服务调用次数总计 {selectedRowsState.reduce((pre, item) => pre + item.callNo!, 0)} 万
-              </span>
+              </span> */}
             </div>
           }
         >
@@ -249,7 +258,6 @@ const TableList: React.FC = () => {
           >
             批量删除
           </Button>
-          <Button type="primary">批量审批</Button>
         </FooterToolbar>
       )}
       <ModalForm
