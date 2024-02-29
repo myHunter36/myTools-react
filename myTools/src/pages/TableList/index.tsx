@@ -1,337 +1,174 @@
-import { addRule, removeRule, rule, updateRule } from '@/services/ant-design-pro/api';
-import { PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns, ProDescriptionsItemProps } from '@ant-design/pro-components';
-import {
-  FooterToolbar,
-  ModalForm,
-  PageContainer,
-  ProDescriptions,
-  ProFormText,
-  ProFormTextArea,
-  ProTable,
-} from '@ant-design/pro-components';
-import '@umijs/max';
-import { Button, Drawer, Input, message } from 'antd';
-import React, { useRef, useState } from 'react';
-import type { FormValueType } from './components/UpdateForm';
-import UpdateForm from './components/UpdateForm';
+import React, { useState } from 'react';
+import { Table, Modal, Button, Input, DatePicker, Form, InputNumber, Select, message } from 'antd';
+import moment from 'moment'; // 引入moment处理日期
 
-/**
- * @en-US Add node
- * @zh-CN 添加节点
- * @param fields
- */
-const handleAdd = async (fields: API.RuleListItem) => {
-  const hide = message.loading('正在添加');
-  try {
-    await addRule({
-      ...fields,
+const { Option } = Select;
+const { RangePicker } = DatePicker;
+
+interface LedgerEntry {
+  id: number;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+}
+
+const LedgerForm: React.FC = () => {
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentEntry, setCurrentEntry] = useState<string | null>(null);
+  const [form] = Form.useForm();
+
+  const showAddModal = () => {
+    setCurrentEntry(null); // 清除当前条目以表示创建新条目
+    setIsModalVisible(true);
+  };
+
+  const showEditModal = (entry: LedgerEntry) => {
+    setCurrentEntry(entry);
+    setIsModalVisible(true);
+    form.setFieldsValue({
+      ...entry,
+      date: moment(entry.date),
     });
-    hide();
-    message.success('Added successfully');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Adding failed, please try again!');
-    return false;
-  }
-};
+  };
 
-/**
- * @en-US Update node
- * @zh-CN 更新节点
- *
- * @param fields
- */
-const handleUpdate = async (fields: FormValueType) => {
-  const hide = message.loading('Configuring');
-  try {
-    await updateRule({
-      name: fields.name,
-      desc: fields.desc,
-      key: fields.key,
+  const handleCancel = () => {
+    setIsModalVisible(false);
+    form.resetFields();
+  };
+
+  const handleOk = () => {
+    form.validateFields().then(values => {
+      const newEntry: LedgerEntry = {
+        id: currentEntry?.id ?? Date.now(),
+        date: values.date.format('YYYY-MM-DD'),
+        category: values.category,
+        description: values.description,
+        amount: values.amount,
+        paymentMethod: values.paymentMethod,
+      };
+      if (currentEntry) {
+        setLedger(ledger.map(entry => (entry.id === currentEntry.id ? newEntry : entry)));
+      } else {
+        setLedger([...ledger, newEntry]);
+      }
+      setIsModalVisible(false);
+      form.resetFields();
     });
-    hide();
-    message.success('Configuration is successful');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Configuration failed, please try again!');
-    return false;
-  }
-};
+  };
 
-/**
- *  Delete node
- * @zh-CN 删除节点
- *
- * @param selectedRows
- */
-const handleRemove = async (selectedRows: API.RuleListItem[]) => {
-  const hide = message.loading('正在删除');
-  if (!selectedRows) return true;
-  try {
-    await removeRule({
-      key: selectedRows.map((row) => row.key),
-    });
-    hide();
-    message.success('Deleted successfully and will refresh soon');
-    return true;
-  } catch (error) {
-    hide();
-    message.error('Delete failed, please try again');
-    return false;
-  }
-};
-const TableList: React.FC = () => {
-  /**
-   * @en-US Pop-up window of new window
-   * @zh-CN 新建窗口的弹窗
-   *  */
-  const [createModalOpen, handleModalOpen] = useState<boolean>(false);
-  /**
-   * @en-US The pop-up window of the distribution update window
-   * @zh-CN 分布更新窗口的弹窗
-   * */
-  const [updateModalOpen, handleUpdateModalOpen] = useState<boolean>(false);
-  const [showDetail, setShowDetail] = useState<boolean>(false);
-  const actionRef = useRef<ActionType>();
-  const [currentRow, setCurrentRow] = useState<API.RuleListItem>();
-  const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
+  const handleDelete = (id: number) => {
+    setLedger(ledger.filter(entry => entry.id !== id));
+  };
 
-  /**
-   * @en-US International configuration
-   * @zh-CN 国际化配置
-   * */
-
-  const columns: ProColumns<API.RuleListItem>[] = [
+  const columns = [
     {
       title: '交易日期',
-      // sorter: true,
-      dataIndex: 'updatedAt',
-      valueType: 'date',
-      renderFormItem: (item, { defaultRender, ...rest }, form) => {
-        return defaultRender(item);
-      },
+      dataIndex: 'date',
+      key: 'date',
+    },
+    {
+      title: '类别',
+      dataIndex: 'category',
+      key: 'category',
     },
     {
       title: '描述',
-      dataIndex: 'desc',
-      valueType: 'textarea',
-      hideInSearch: true,
+      dataIndex: 'description',
+      key: 'description',
     },
     {
       title: '金额',
       dataIndex: 'amount',
-      sorter: true,
-      hideInForm: true,
-      valueType: 'money',
-      renderText: (val: string) => `${val}${'元'}`,
-      hideInSearch: true,
-    },
-    {
-      title: '账单类型',
-      dataIndex: 'category',
-      filters: true,
-      valueEnum: {
-        0: {
-          text: '关闭',
-          status: 'Default',
-        },
-        1: {
-          text: '运行中',
-          status: 'Processing',
-        },
-        2: {
-          text: '已上线',
-          status: 'Success',
-        },
-        3: {
-          text: '异常',
-          status: 'Error',
-        },
-      },
+      key: 'amount',
+      sorter: (a, b) => a.amount - b.amount,
     },
     {
       title: '支付方式',
       dataIndex: 'paymentMethod',
-      filters: true,
-      valueEnum: {
-        0: {
-          text: '关闭',
-          status: 'Default',
-        },
-        1: {
-          text: '运行中',
-          status: 'Processing',
-        },
-        2: {
-          text: '已上线',
-          status: 'Success',
-        },
-        3: {
-          text: '异常',
-          status: 'Error',
-        },
-      },
+      key: 'paymentMethod',
+      filters: [
+        { text: '现金', value: 'cash' },
+        { text: '信用卡', value: 'creditCard' },
+        { text: '转账', value: 'transfer' },
+        // ...其他支付方式
+      ],
+      onFilter: (value, record) => record.paymentMethod.indexOf(value) === 0,
     },
     {
       title: '操作',
-      dataIndex: 'option',
-      valueType: 'option',
-      render: (_, record) => [
-        <a
-          key="edit"
-          onClick={() => {
-            handleUpdateModalOpen(true);
-            setCurrentRow(record);
-          }}
-        >
-          编辑
-        </a>,
-        <a 
-          key="delete" 
-          onClick={async () => {
-            await handleRemove([record]);
-            setSelectedRows([]);
-            actionRef.current?.reloadAndRest?.();
-          }}
-        >
-          删除
-        </a>,
-      ],
+      key: 'actions',
+      render: (_: any, record: LedgerEntry) => (
+        <>
+          <Button onClick={() => showEditModal(record)} style={{ marginRight: 8 }}>
+            Edit
+          </Button>
+          <Button onClick={() => handleDelete(record.id)} danger>
+            Delete
+          </Button>
+        </>
+      ),
     },
   ];
-  return (
-    <PageContainer>
-      <ProTable<API.RuleListItem, API.PageParams>
-        headerTitle={'账单表格'}
-        actionRef={actionRef}
-        rowKey="key"
-        search={{
-          labelWidth: 120,
-        }}
-        toolBarRender={() => [
-          <Button
-            type="primary"
-            key="primary"
-            onClick={() => {
-              handleModalOpen(true);
-            }}
-          >
-            <PlusOutlined /> 新建
-          </Button>,
-        ]}
-        request={rule}
-        columns={columns}
-        rowSelection={{
-          onChange: (_, selectedRows) => {
-            setSelectedRows(selectedRows);
-          },
-        }}
-      />
-      {selectedRowsState?.length > 0 && (
-        <FooterToolbar
-          extra={
-            <div>
-              已选择{' '}
-              <a
-                style={{
-                  fontWeight: 600,
-                }}
-              >
-                {selectedRowsState.length}
-              </a>{' '}
-              项 &nbsp;&nbsp;
-              {/* <span>
-                服务调用次数总计 {selectedRowsState.reduce((pre, item) => pre + item.callNo!, 0)} 万
-              </span> */}
-            </div>
-          }
-        >
-          <Button
-            onClick={async () => {
-              await handleRemove(selectedRowsState);
-              setSelectedRows([]);
-              actionRef.current?.reloadAndRest?.();
-            }}
-          >
-            批量删除
-          </Button>
-        </FooterToolbar>
-      )}
-      <ModalForm
-        title={'新建规则'}
-        width="400px"
-        open={createModalOpen}
-        onOpenChange={handleModalOpen}
-        onFinish={async (value) => {
-          const success = await handleAdd(value as API.RuleListItem);
-          if (success) {
-            handleModalOpen(false);
-            if (actionRef.current) {
-              actionRef.current.reload();
-            }
-          }
-        }}
-      >
-        <ProFormText
-          rules={[
-            {
-              required: true,
-              message: '规则名称为必填项',
-            },
-          ]}
-          width="md"
-          name="name"
-        />
-        <ProFormTextArea width="md" name="desc" />
-      </ModalForm>
-      <UpdateForm
-        onSubmit={async (value) => {
-          const success = await handleUpdate(value);
-          if (success) {
-            handleUpdateModalOpen(false);
-            setCurrentRow(undefined);
-            if (actionRef.current) {
-              actionRef.current.reload();
-            }
-          }
-        }}
-        onCancel={() => {
-          handleUpdateModalOpen(false);
-          if (!showDetail) {
-            setCurrentRow(undefined);
-          }
-        }}
-        updateModalOpen={updateModalOpen}
-        values={currentRow || {}}
-      />
 
-      <Drawer
-        width={600}
-        open={showDetail}
-        onClose={() => {
-          setCurrentRow(undefined);
-          setShowDetail(false);
-        }}
-        closable={false}
-      >
-        {currentRow?.name && (
-          <ProDescriptions<API.RuleListItem>
-            column={2}
-            title={currentRow?.name}
-            request={async () => ({
-              data: currentRow || {},
-            })}
-            params={{
-              id: currentRow?.name,
-            }}
-            columns={columns as ProDescriptionsItemProps<API.RuleListItem>[]}
-          />
-        )}
-      </Drawer>
-    </PageContainer>
+  return (
+    <div>
+      <div>
+        通过日期筛选 :
+        <RangePicker
+          onChange={(dates) => {
+            const startDate = dates && dates[0] ? dates[0].startOf('day') : null;
+            const endDate = dates && dates[1] ? dates[1].endOf('day') : null;
+            console.log(dates,  startDate,  endDate, 'dates');
+            if(startDate && endDate) {
+              const filteredData = ledger.filter((entry) => {
+                const entryDate = moment(entry.date);
+                return (!startDate || entryDate.isSameOrAfter(startDate)) &&
+                      (!endDate || entryDate.isSameOrBefore(endDate));
+              });
+              setLedger(filteredData);
+            }
+            
+            // setStartDate(dates ? dates[0].startOf('day') : null);
+            // setEndDate(dates ? dates[1].endOf('day') : null);
+          }}
+          style={{ margin: 16, marginTop: 0 }}
+        />
+      </div>
+      
+      <Button type="primary" onClick={showAddModal} style={{ marginBottom: 16 }}>
+        新建
+      </Button>
+      <Table dataSource={ledger} columns={columns} rowKey="id" />
+
+      <Modal title={currentEntry ? '编辑账单' : '新建账单'} open={isModalVisible} onOk={handleOk} onCancel={handleCancel}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="date" label="交易日期" rules={[{ required: true, message: 'Please select the date!' }]}>
+            <DatePicker />
+          </Form.Item>
+          <Form.Item name="category" label="类别" rules={[{ required: true, message: 'Please input the category!' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="描述" rules={[{ required: true, message: 'Please input the description!' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="amount" label="金额" rules={[{ required: true, message: 'Please input the amount!' }]}>
+            <InputNumber />
+          </Form.Item>
+          <Form.Item name="paymentMethod" label="支付方式" rules={[{ required: true, message: 'Please select the payment method!' }]}>
+            <Select>
+              <Option value="cash">现金</Option>
+              <Option value="creditCard">信用卡</Option>
+              <Option value="transfer">转账</Option>
+              {/* 添加更多的支付方式选项 */}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   );
 };
-export default TableList;
+
+export default LedgerForm;
