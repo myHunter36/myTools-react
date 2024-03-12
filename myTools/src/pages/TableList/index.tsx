@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Modal, Button, Input, DatePicker, Form, InputNumber, Select, message } from 'antd';
 import moment from 'moment'; // 引入moment处理日期
+import DataAnalysisModal from '../TableList/components/DataAnalysisModal';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -17,6 +18,7 @@ interface LedgerEntry {
 const LedgerForm: React.FC = () => {
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isAnalysisModalVisible, setIsAnalysisModalVisible] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<LedgerEntry | null>(null);
   const [form] = Form.useForm();
 
@@ -149,11 +151,18 @@ const LedgerForm: React.FC = () => {
         />
       </div>
       
-      <Button type="primary" onClick={showAddModal} style={{ marginBottom: 16 }}>
+      <Button onClick={showAddModal} style={{ marginBottom: 16, marginRight: 8 }}>
         新建
       </Button>
+      <Button type="primary" onClick={() => setIsAnalysisModalVisible(true)}>
+        分析数据
+      </Button>
       <Table dataSource={ledger} columns={columns} rowKey="id" />
-
+      <DataAnalysisModal
+        visible={isAnalysisModalVisible}
+        data={ledger}
+        onClose={() => setIsAnalysisModalVisible(false)}
+      />
       <Modal title={currentEntry ? '编辑账单' : '新建账单'} open={isModalVisible} onOk={handleOk} onCancel={handleCancel}>
         <Form form={form} layout="vertical">
           <Form.Item name="date" label="交易日期" rules={[{ required: true, message: 'Please select the date!' }]}>
