@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Table, Modal, Button, Input, DatePicker, Form, InputNumber, Select, message } from 'antd';
 import moment from 'moment'; // 引入moment处理日期
 
@@ -17,8 +17,19 @@ interface LedgerEntry {
 const LedgerForm: React.FC = () => {
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [currentEntry, setCurrentEntry] = useState<string | null>(null);
+  const [currentEntry, setCurrentEntry] = useState<LedgerEntry | null>(null);
   const [form] = Form.useForm();
+
+  // 加载数据
+  useEffect(() => {
+    const savedData = JSON.parse(localStorage.getItem('ledgerData') || '[]');
+    setLedger(savedData);
+  }, []);
+
+  // 保存数据
+  useEffect(() => {
+    localStorage.setItem('ledgerData', JSON.stringify(ledger));
+  }, [ledger]);
 
   const showAddModal = () => {
     setCurrentEntry(null); // 清除当前条目以表示创建新条目
@@ -103,10 +114,10 @@ const LedgerForm: React.FC = () => {
       render: (_: any, record: LedgerEntry) => (
         <>
           <Button onClick={() => showEditModal(record)} style={{ marginRight: 8 }}>
-            Edit
+            编辑
           </Button>
           <Button onClick={() => handleDelete(record.id)} danger>
-            Delete
+            删除
           </Button>
         </>
       ),
